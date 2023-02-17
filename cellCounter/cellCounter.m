@@ -2,7 +2,6 @@ classdef cellCounter < handle
     properties
         fig_image
         fig_ui
-        fig_lumSlid
 
         ax_image
         imgHandle
@@ -22,9 +21,10 @@ classdef cellCounter < handle
         mask
         pointsCoord = []    % List of (XY) raw points coordinates
         roi_delPoints = []  % handle of the ROI object for deleting points
-        radiusDelPoints = 10;
-        roiRect;
-        mutex;
+        radiusDelPoints = 10
+        roiRect
+        mutex
+        imSize
 
         modes = {'explore','count'};    % List of app mode names
         mode = 1;                       % app mode. Can be 1 (explore) or 2 (count)
@@ -33,9 +33,12 @@ classdef cellCounter < handle
         % Default values for the app
         defVals = struct('blackValue',0,...
             'whiteValue', 0.7,...
+            'saveResizedMask', false,...
             'resizeFactor',0.5,...
             'csvPath',[],...
             'saveCsvPath',[],...
+            'saveMaskPath',[],...
+            'ROIPath',[],...
             'loadImgPath',[]);
     end
 
@@ -99,15 +102,15 @@ classdef cellCounter < handle
             % UI and options figure
             %--------------------------------------------------------------
             width = 450;
-            heigth = 500;
+            heigth = 660;
             app.fig_ui = uifigure('Resize', 'off',...
                 'Name', 'Control panel',...
                 'NumberTitle','off',...
-                'Position',[25, (screenSize(4)-heigth-50), width, heigth]...
-                );
+                'Position',[25, (screenSize(4)-heigth-50), width, heigth],...
+                'CloseRequestFcn',@app.closeFunction);
             grid = uigridlayout(app.fig_ui,...
                 'ColumnWidth',{'1x','1x'},...
-                'RowHeight',{'1x','7x','6x'});
+                'RowHeight',{'1x','7x','6x', '4x'});
 
             loadImgBtn = uibutton('Parent',grid,'Text','LOAD IMAGE',...
                 'FontWeight','bold','ButtonPushedFcn',@app.loadImage);
@@ -116,11 +119,6 @@ classdef cellCounter < handle
             p1 = uipanel('Title','Keyboard shortcuts', 'Parent',grid);
             p1.Layout.Column = 1;
             p1.Layout.Row = 2;
-
-
-
-            % %
-
             g1 = uigridlayout(p1,...
                 'ColumnWidth',{'1x','1x'},...
                 'RowHeight',{'fit','fit','fit','fit','fit','fit'});
@@ -183,19 +181,19 @@ classdef cellCounter < handle
             p3 = uipanel('Title','ROI management', 'Parent',grid);
             p3.Layout.Column = [1,2];
             p3.Layout.Row = 3;
-            g3 = uigridlayout(p3,...
+            g3 = uigridlayout('Parent',p3,...
                 'ColumnWidth',{'1x','1x'},...
                 'RowHeight',{'1x', '2x','2x','2x'});
 
-            lb1 = uilabel(g3, "Text","ROI type");
+            lb1 = uilabel('Parent',g3, "Text","ROI type");
             lb1.Layout.Column = 1;
-            lb2 = uilabel(g3, "Text","ROI orientation");
+            lb2 = uilabel('Parent',g3, "Text","ROI orientation");
             lb2.Layout.Column = 2;
-            app.selectRoi = uiswitch(g3, 'Items',{'Rectangle','Freehand'} , 'Orientation','horizontal', 'Enable',false);
+            app.selectRoi = uiswitch('Parent',g3, 'Items',{'Rectangle','Freehand'} , 'Orientation','horizontal', 'Enable',false);
             app.selectRoi.Layout.Column = 1;
             app.selectRoi.Layout.Row = 2;
 
-            app.rotationSlider = uislider(g3, 'Limits',[0 360] ,'MajorTicks',[0 90 180 270  360], ...
+            app.rotationSlider = uislider('Parent',g3, 'Limits',[0 360] ,'MajorTicks',[0 90 180 270  360], ...
                 'Orientation','horizontal', 'ValueChangedFcn',@app.rotateRoi,'ValueChangingFcn',@app.rotateRoi);
             app.rotationSlider.Layout.Column = 2;
             app.rotationSlider.Layout.Row = 2;
@@ -205,42 +203,45 @@ classdef cellCounter < handle
             loadRoiBtn.Layout.Row = 3;
 
 
-            saveBtn = uibutton('Parent',g3,'Text','Load Mask','ButtonPushedFcn',@app.saveCSV);
+            saveBtn = uibutton('Parent',g3,'Text','Load Mask','ButtonPushedFcn',@app.loadMask);
             saveBtn.Layout.Column = 2;
             saveRoiBtn = uibutton('Parent',g3,'Text','Save ROI','ButtonPushedFcn',@app.saveRoi);
             saveRoiBtn.Layout.Column = 1;
             saveBtn = uibutton('Parent',g3,'Text','Save Mask','ButtonPushedFcn',@app.saveMask);
             saveBtn.Layout.Column = 2;
-            %--------------------------------------------------------------
-            % Luminance sliders figure
-            %--------------------------------------------------------------
-            width = 450;
-            heigth = 140;
-            app.fig_lumSlid = uifigure('Resize', 'off',...
-                'Name', 'Luminance Sliders',...
-                'NumberTitle','off',...
-                'MenuBar','none',...
-                'Position',[screenSize(3)-width-25 50 width heigth],...
-                'CloseRequestFcn',@app.closeFunction);
-            grid = uigridlayout(app.fig_lumSlid,...
+
+
+            p4 = uipanel('Title','Adjust Image Brightness', 'Parent',grid);
+            p4.Layout.Column = [1,2];
+            p4.Layout.Row = 4;
+            g4 = uigridlayout('Parent',p4,...
                 'ColumnWidth',{'1x','5x'},...
                 'RowHeight',{'1x', '1x'});
 
             % Black Control Slider
-            uilabel('Parent',grid,'Text','Black');
-            app.blackSlider = uislider('Parent', grid,...
+            lbBlack = uilabel('Parent',g4,'Text','Black');
+            app.blackSlider = uislider('Parent', g4,...
                 'Value', app.defVals.blackValue,...
                 'Limits', [0, 1],...
                 'Tag','blkSl',...
                 'ValueChangedFcn',@app.luminanceManager);
+            lbBlack.Layout.Column = 1;
+            lbBlack.Layout.Row = 1;
 
+            app.blackSlider.Layout.Column = 2;
+            app.blackSlider.Layout.Row = 1;
             % White Control Slider
-            uilabel('Parent',grid,'Text','White');
-            app.whiteSlider = uislider('Parent', grid,...
+            lbWhite= uilabel('Parent',g4,'Text','White');
+            app.whiteSlider = uislider('Parent', g4,...
                 'Value', app.defVals.whiteValue,...
                 'Limits', [0, 1],...
                 'Tag','whtSl',...
                 'ValueChangedFcn',@app.luminanceManager);
+
+            lbWhite.Layout.Column = 1;
+            lbWhite.Layout.Row = 2;
+            app.whiteSlider.Layout.Column = 2;
+            app.whiteSlider.Layout.Row = 2;
         end
 
 
@@ -274,8 +275,6 @@ classdef cellCounter < handle
                     app.deletePoints();
                 case 'm'
                     app.drawMask();
-                    %                 case 'escape'
-                    %                     app.closeFunction();
                 case 't'
                     app.pointHandle.Visible = ~app.pointHandle.Visible;
                 case 'r'
@@ -360,7 +359,9 @@ classdef cellCounter < handle
             tit = 'Choose an Image to count.';
             [file,path] = uigetfile('*',tit, app.defVals.loadImgPath);
             if file ~= 0
-                im = imresize(imread([path filesep file]),app.defVals.resizeFactor);
+                hiresIm = imread([path filesep file]);
+                im = imresize(hiresIm,app.defVals.resizeFactor);
+                app.imSize = size(hiresIm,[1,2]);
                 if size(im,3) > 1
                     im = rgb2gray(im);
                 end
@@ -434,8 +435,8 @@ classdef cellCounter < handle
             roi = drawrectangle(app.ax_image, Rotatable=true);
             app.updateGraphics()
             app.roiRect = roi;
-            app.listener = addlistener(app.roiRect,'MovingROI',@(src,evt) updateSlider(app, src,evt)); 
-            fprintf('Selected ROI. Total area: %u pixels.\n', sum(app.mask(:)))
+            app.listener = addlistener(app.roiRect,'MovingROI',@(src,evt) updateSlider(app, src,evt));
+            fprintf('Drawn Rectangular ROI\n');
         end
 
         function roi2Mask(app, ~,~)
@@ -443,6 +444,7 @@ classdef cellCounter < handle
                 app.mask = app.roiRect.createMask();
                 app.imgHandle.AlphaData = (~app.mask).*0.3 + app.mask;
                 delete(app.roiRect)
+                fprintf('Mask created. Total area: %u pixels.\n', sum(app.mask(:)))
             end
         end
 
@@ -488,7 +490,7 @@ classdef cellCounter < handle
                 warning('ROI already present. It will be overwritten.')
             end
             title = 'Choose a .mat file with a ROI.';
-            [file,path] = uigetfile('*.mat',title,app.defVals.csvPath);
+            [file,path] = uigetfile('*.mat',title,app.defVals.ROIPath);
             if file ~= 0
                 try
                     matf = load([path filesep file]);
@@ -501,40 +503,89 @@ classdef cellCounter < handle
                         'color', 'red' );
                     app.roiRect.InteractionsAllowed = 'translate';
 
-                    addlistener(app.roiRect,'ROIMoved',@( src,evt) app.blockResize(src, evt) );
+                    addlistener(app.roiRect,'MovingROI',@( src,evt) app.blockResize(src, evt) );
                     fprintf([ char(datetime('now','TimeZone','local','Format','yyMMdd-HHmm', 'Locale','it_IT')) '>>> ROI in "%s" loaded!\n'], file)
                 catch ME
                     fprintf('UNABLE TO LOAD FILE.\n')
                     fprintf('The following error occurred: %s\nMESSAGE: %s\n', ME.identifier, ME.message)
                 end
             end
+        end
 
 
+        function loadMask(app, ~, ~)
+            if ~ishandle(app.imgHandle)
+                warning('No image is present. No Mask can be loaded')
+                return
+            end
+
+            if  ishandle(app.mask)
+                warning('ROI already present. It will be overwritten.')
+            end
+            title = 'Choose a .png file for the mask.';
+            [file,path] = uigetfile('*.png',title,app.defVals.saveMaskPath);
+            if file ~= 0
+                try
+                    maskfile = [path filesep file];
+                    maskLoaded = imread(maskfile);
+                    s = readJsonFile([path filesep replace(file, '.png', '.json')]);
+                    if s.resizeFactor==1
+                        maskLoaded = imresize(maskLoaded, size(app.imageData), 'nearest');
+                    end
+                    app.updateGraphics();
+                    app.mask = maskLoaded;
+                    app.imgHandle.AlphaData = (~app.mask).*0.3 + app.mask;
+
+                catch ME
+                    fprintf('UNABLE TO LOAD FILE.\n')
+                    fprintf('The following error occurred: %s\nMESSAGE: %s\n', ME.identifier, ME.message)
+                end
+            end
         end
 
         function saveMask(app,~,~)
-            defName = [app.imgName '_mask-'  char(datetime('now','TimeZone','local','Format','yyMMdd-HHmm', 'Locale','it_IT')) '.mat'];
+
+            defName = [app.imgName '_mask-'  char(datetime('now','TimeZone','local','Format','yyMMdd-HHmm', 'Locale','it_IT')) '.png'];
             tit = 'Select a file to save the current cell count';
-            [file, path] = uiputfile('*', tit, [app.defVals.csvPath filesep defName]);
+            [file, path] = uiputfile('*.png', tit, [app.defVals.saveMaskPath filesep defName]);
 
             if file ~= 0
-                MASK = app.mask;
-                resizeFactor = app.defVals.resizeFactor;
-                totalAreaPx = sum(app.mask(:));
-                save([path filesep file], 'MASK', 'totalAreaPx', 'resizeFactor')
+                s = struct('originaImSize', [],'resizeFactor',[],'totalAreaPx',[]);
+                resizedMask = imresize(app.mask, app.imSize, 'nearest');
+                s.totalAreaPx = sum(resizedMask);
+                s.originalImSize = app.imSize;
+                if app.defVals.saveResizedMask
+                    maskMatrix = app.mask;
+                    s.originaImSize = app.defVals.resizeFactor;
+
+                else
+                    maskMatrix = resizedMask;
+                    s.resizeFactor = 1;
+
+                end
+
+                fid=fopen([path filesep replace(file, '.png', '.json')],'w') ;
+                encodedJSON = jsonencode(s,PrettyPrint=true);
+                fprintf(fid, encodedJSON);
+                fclose(fid);
+                imwrite(maskMatrix, [path filesep file])
                 fprintf([ char(datetime('now','TimeZone','local','Format','yyMMdd-HHmm', 'Locale','it_IT')) 'Mask saved in "%s"!\n'], file)
+                app.defVals.saveMaskPath = path;
             end
         end
+
+
 
         function saveRoi(app,~,~)
             defName = [app.imgName '_roi-'  char(datetime('now','TimeZone','local','Format','yyMMdd-HHmm', 'Locale','it_IT')) '.mat'];
             tit = 'Select a file to save the current cell count';
-            [file, path] = uiputfile('*', tit, [app.defVals.csvPath filesep defName]);
+            [file, path] = uiputfile('*', tit, [app.defVals.ROIPath filesep defName]);
 
             if file ~= 0
                 roi = app.roiRect;
                 save([path filesep file], 'roi')
                 fprintf([ char(datetime('now','TimeZone','local','Format','yyMMdd-HHmm', 'Locale','it_IT')) 'Roi saved in "%s"!\n'], file)
+                app.defVals.ROIPath = path;
             end
         end
 
@@ -566,20 +617,13 @@ classdef cellCounter < handle
 
         function rotateRoi(app, ~,~)
             app.mutex.acquire();
-
-            %              app.listener = addlistener(app.roiRect,'MovingROI',@(src,evt) disp() );
-            %             if ishandle(app.roiRect)
             app.roiRect.RotationAngle = app.rotationSlider.Value;
-%             drawnow;
-            %             end
-            %             app.listener = addlistener(app.roiRect,'MovingROI',@(src,evt) updateSlider(app, src,evt));
             app.mutex.release();
 
         end
 
         function closeFunction(app,~,~)
             delete(app.fig_image)
-            delete(app.fig_lumSlid)
             delete(app.fig_ui)
         end
 
