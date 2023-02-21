@@ -520,7 +520,7 @@ classdef cellCounter < handle
             end
 
             if  ishandle(app.mask)
-                warning('ROI already present. It will be overwritten.')
+                warning('Mask already present. It will be overwritten.')
             end
             title = 'Choose a .png file for the mask.';
             [file,path] = uigetfile('*.png',title,app.defVals.saveMaskPath);
@@ -550,9 +550,9 @@ classdef cellCounter < handle
             [file, path] = uiputfile('*.png', tit, [app.defVals.saveMaskPath filesep defName]);
 
             if file ~= 0
-                s = struct('originaImSize', [],'resizeFactor',[],'totalAreaPx',[]);
+                s = struct('originalImSize', [],'resizeFactor',[],'totalAreaPx',[]);
                 resizedMask = imresize(app.mask, app.imSize, 'nearest');
-                s.totalAreaPx = sum(resizedMask);
+                s.totalAreaPx = sum(resizedMask,"all");
                 s.originalImSize = app.imSize;
                 if app.defVals.saveResizedMask
                     maskMatrix = app.mask;
@@ -617,7 +617,9 @@ classdef cellCounter < handle
 
         function rotateRoi(app, ~,~)
             app.mutex.acquire();
+            if ishandle(app.roiRect)
             app.roiRect.RotationAngle = app.rotationSlider.Value;
+            end
             app.mutex.release();
 
         end
