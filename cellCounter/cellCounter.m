@@ -47,10 +47,10 @@ classdef cellCounter < handle
         % CLASS CONSTRUCTOR METHOD
         %------------------------------------------------------------------
         function app = cellCounter(imagePath)
-            % app = cellCounter_PV()
-            % app = cellCounter_PV(imagePath)
+            % app = cellCounter()
+            % app = cellCounter(imagePath)
             %
-            % cellCounter_PV is a GUI for interactive automatic counting of
+            % cellCounter is a GUI for interactive automatic counting of
             % cells and for the manual refinement of the automatic count
 
 
@@ -150,33 +150,42 @@ classdef cellCounter < handle
             p2.Layout.Column = 2;
             p2.Layout.Row = [1 2];
             g2 = uigridlayout(p2,...
-                'ColumnWidth',{'1x','1x'},...
+                'ColumnWidth',{'2x','1x', '3x'},...
                 'RowHeight',{'1x','1x','fit','fit','fit','1x'});
             % LOAD CSV
             loadBtn = uibutton('Parent',g2,'Text','Load from CSV',...
                 'ButtonPushedFcn',@app.loadCSV);
-            loadBtn.Layout.Column = [1,2];
+            loadBtn.Layout.Column = [1,3];
 
 
             % COUNT CELLs
             autoCBtn = uibutton('Parent',g2,'Text','Auto Count Cells',...
                 'ButtonPushedFcn',@app.autoCount);
-            autoCBtn.Layout.Column = [1,2];
+            autoCBtn.Layout.Column = [1,3];
+
+            % COUNT CELLs
+            estimateSigmaBtn = uibutton('Parent',g2,'Text','measure',...
+                'ButtonPushedFcn',@app.measureSigma);
+            estimateSigmaBtn.Layout.Column = 1;
+
 
             app.edtSigma = uieditfield(g2,'numeric','Value',4,'Limits',[1 20],...
                 'FontSize',10);
+            app.edtSigma.Layout.Column = 2;
             uilabel('Parent',g2,'Text','Sigma (cell size)','FontSize',10);
 
             app.edtBright = uieditfield(g2,'numeric','Value',6,'Limits',[1 100],...
                 'FontSize',10);
+            app.edtBright.Layout.Column = [1,2];
             uilabel('Parent',g2,'Text','Brightness [1 100]','FontSize',10);
 
             app.edtRound = uieditfield(g2,'numeric','Value',0.65,'Limits',[-1 1],...
                 'FontSize',10);
+            app.edtRound.Layout.Column = [1,2];
             uilabel('Parent',g2,'Text','Roundness [-1 1]','FontSize',10);
 
             saveBtn = uibutton('Parent',g2,'Text','Save Cell Count to CSV','ButtonPushedFcn',@app.saveCSV);
-            saveBtn.Layout.Column = [1,2];
+            saveBtn.Layout.Column = [1,3];
 
             p3 = uipanel('Title','ROI management', 'Parent',grid);
             p3.Layout.Column = [1,2];
@@ -618,10 +627,17 @@ classdef cellCounter < handle
         function rotateRoi(app, ~,~)
             app.mutex.acquire();
             if ishandle(app.roiRect)
-            app.roiRect.RotationAngle = app.rotationSlider.Value;
+                app.roiRect.RotationAngle = app.rotationSlider.Value;
             end
             app.mutex.release();
 
+        end
+
+        function measureSigma(app, ~,~)
+            if ishandle(app.imgHandle)
+                im = normalize(im2double(app.imageData));
+                spotMeasureTool(im);
+            end
         end
 
         function closeFunction(app,~,~)
