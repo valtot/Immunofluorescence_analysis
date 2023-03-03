@@ -64,11 +64,12 @@ classdef cellClassifier < handle
                 FT = [];
                 LB = [];
                 for i = 1:length(imList)
-                    fprintf("Processing image %d/%d \n", i, length(imList));
+                        fprintf("Processing image %d/%d \n", i, length(imList));
                     im = imread(imList{i});
                     if trainingOptions.contrastAdjustment == true
                         im = imadjust(im);
                     end
+ 
                     [features, featNames] = self.extractImageFeatures(im);
 
                     imMask = imread(maskList{i});
@@ -79,6 +80,7 @@ classdef cellClassifier < handle
 
                     FT =cat(1, FT, ft);
                     LB =cat(1, LB, lb);
+
                 end
             else
 
