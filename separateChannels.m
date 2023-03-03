@@ -1,4 +1,4 @@
-p = 'D:\proj_PNNreporter_IF\DATASET\PV_058\rawRGB';
+p = 'D:\proj_PNNreporter_IF\DATASET\PV_032\rawRGB';
 
 path = fileparts(p);
 

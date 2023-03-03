@@ -2,7 +2,7 @@ function totTable = colocalizeCount(table1, table2, stainingNames, distThr)
 
         D = pdist2([table1.x table1.y],[table2.x table2.y], 'euclidean');
         D(D>distThr) = nan;
-        [m, in] = min(D, [],'omitnan');
+        [m, in] = min(D, [],1,'omitnan');
 
 
         colocalized_1 = table1(in(~isnan(m)), :);
